@@ -1,16 +1,23 @@
 package com.ident.validator.core.ui;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.nfc.tech.MifareUltralight;
+import android.os.Handler;
+import android.os.Message;
 import android.os.Parcelable;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.View;
+import android.widget.ImageView;
+import android.widget.Toast;
 
 import com.ident.ValidateListener;
 import com.ident.ValidateResult;
@@ -23,10 +30,21 @@ import com.ident.validator.core.model.TagMessage;
 import com.ident.validator.core.utils.NAFVerifyHelper;
 import com.ident.validator.core.views.ProgressDialog;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.litepal.crud.DataSupport;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.List;
+
+
+import okhttp3.FormBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 import static android.content.ContentValues.TAG;
 
@@ -48,6 +66,234 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
     private boolean isFirst;
     private ProgressDialog mProgressDialog;
     private TagInfo tagInfo;
+
+
+    /** 保存第一次读取的证书*/
+    private String license = "";
+
+    private String result="";   //保存uid
+    private String temp=""; //保存状态位
+
+    /** 测试数据 */
+    private String license_test = "";
+    private String uid_test = "";
+    private String num_test = "";
+    private String logo_test = "";
+    private String group_test = "";
+
+    /** 双证验证的次数*/
+    private int a = 0;
+
+    /** 发送成功的字段*/
+    private static final int UPDATE = 1;
+    private static final int ADD = 2;
+
+    /** 保存服务器返回数据*/
+    private String data_zouyun;
+
+    /** 验证成功才可以进行再次加密*/
+    private boolean write_again = false;
+    private Activity_zouyun zouyun1 = new Activity_zouyun();
+
+    /** 保存再次写入的证书*/
+    private  String license_again = "";
+    private String aa = "";
+
+    /** 再次写入是否成功*/
+    private boolean isSuccessfullyWritted = false;
+
+
+    /** handler方法处理网络回复信息*/
+   private Handler handler = new Handler(){
+        public void handleMessage(Message msg){
+            switch(msg.what){
+                case UPDATE:
+                    System.out.println("发送请求成功");
+                    /** 为真的一组数据*/
+//                    license_test = "32333039";
+//                    uid_test = "04edb94ade3680";
+//                    num_test = "11111";
+//                    logo_test = "五粮液";
+//                    System.out.println("Result: " + result + "  " + "license: " + license + "   " + "temp: " + num_test);
+
+                    /** 商品已开启的一组数据*/
+//                    license_test = "32333039";
+//                    uid_test = "04edb94ade3680";
+//                    num_test = "11110";
+//                    logo_test = "五粮液";
+//                    System.out.println("Result: " + result + "  " + "license: " + license + "   " + "temp: " + num_test);
+
+                    /** 商品为假的一组数据*/
+//                    license_test = "32333038";
+//                    uid_test = "04edb94ade3680";
+//                    num_test = "11111";
+//                    logo_test = "五粮液";
+//                    System.out.println("Result: " + result + "  " + "license: " + license + "   " + "temp: " + num_test);
+
+                    /** 双标签的验证数据一*/
+//                    license_test = "31313931";
+//                    uid_test = "040ce50a685f81";
+//                    num_test = "01101";
+//                    logo_test = "五粮液";
+//                    group_test = "11112222";
+//                    System.out.println("Result: " + result + "  " + "license: " + license + "   " + "temp: " + num_test);
+
+                    /** 双标签的验证数据二*/
+//                    license_test = "30303437";
+//                    uid_test = "0406e40a685f81";
+//                    num_test = "";
+//                    logo_test = "五粮液";
+//                    group_test = "11112222";
+//                    System.out.println("Result: " + result + "  " + "license: " + license + "   " + "temp: " + num_test);
+
+                    /** 解析数据*/
+                    data_zouyun = (String) msg.obj;
+                    System.out.println("回复数据为：" + data_zouyun);
+                    handleData(data_zouyun);
+                    System.out.println("uid_test: " + uid_test + "  " + "license_test: " + license_test
+                            + "   " + "num_test: " + num_test + "   " + "group_test: " + group_test
+                            + " " + "logo_test: " + logo_test);
+                    if(result.equals("")){
+                        String color_zouyun = "aaaaa";
+                        ResultFragment instance = ResultFragment.newInstance();
+                        mView.switchFragment(instance);
+                        setMove(color_zouyun,instance);
+                        instance.setResultImg(R.mipmap.p_010001000100000002_failure);
+                        instance.setResultProduct(false);
+                        instance.setTvInfo("未探测到标签");
+                    }else {
+
+                        /** 展示结果*/
+                        if (temp.equals("")) {
+                            System.out.println("这不是RAS标签");
+                            String color_zouyun = "aaaaa";
+                            ResultFragment instance = ResultFragment.newInstance();
+                            mView.switchFragment(instance);
+                            setMove(color_zouyun, instance);
+                            instance.setResultImg(R.mipmap.p_010001000100000002_failure);
+                            instance.setResultProduct(false);
+                            instance.setTvInfo("这不是RAS标签");
+                        } else {
+                            if (group_test.equals("-1")) {
+                                if (result.equals(uid_test) && license.equals(license_test)) {
+                                    if (temp.equals(num_test)) {
+                                        System.out.println("单证商品为真");
+                                        setBackground1(logo_test);
+
+                                        //write_again = true;
+                                        //saveTagData();
+
+                                        /** 再次写入*/
+
+
+                                        send2WithOkHttp();
+
+                                    } else {
+                                        System.out.println("单证商品已开启");
+                                        setBackground3(logo_test);
+
+                                        //write_again = true;
+                                        send2WithOkHttp();
+                                        //saveTagData();
+                                    }
+                                } else {
+                                    System.out.println("result：" + result + "   " + "uid_test：" + uid_test + "  "
+                                                + "license：" + license + "    " + "license_test：" + license_test);
+                                    System.out.println("单证商品为假");
+                                    setBackground2(logo_test);
+                                }
+                            } else {
+                                if (result.equals(uid_test) && license.equals(license_test)) {
+                                    if (a != 1) {
+                                        if (temp.equals(num_test)) {
+                                            System.out.println("请扫描第二张标签");
+                                            System.out.println("组号为：" + group_test);
+                                            SharedPreferences pref = mAct.getSharedPreferences("group", Context.MODE_PRIVATE);
+                                            SharedPreferences.Editor editor = pref.edit();
+                                            editor.putString("NUM", group_test);
+                                            editor.apply();
+                                            a = 1;
+
+                                            setDoubleBackground1(logo_test);
+
+                                            send2WithOkHttp();
+                                            //write_again = true;
+                                            //saveTagData();
+                                        } else {
+                                            System.out.println("请扫描第二张标签");
+                                            SharedPreferences pref = mAct.getSharedPreferences("group", Context.MODE_PRIVATE);
+                                            SharedPreferences.Editor editor = pref.edit();
+                                            editor.putString("NUM", group_test);
+                                            editor.apply();
+                                            a = 1;
+
+                                            setDoubleBackground2(logo_test);
+                                            send2WithOkHttp();
+
+                                            //write_again = true;
+                                            //saveTagData();
+                                        }
+                                    } else {
+                                        SharedPreferences pref = mAct.getSharedPreferences("group", Context.MODE_PRIVATE);
+                                        String groupNum = pref.getString("NUM", "1");
+                                        if (group_test.equals(groupNum)) {
+                                            System.out.println("双证商品为真");
+                                            a = 0;
+
+                                            setDoubleBackground3(logo_test);
+                                            send2WithOkHttp();
+
+
+                                            //write_again = true;
+                                            //saveTagData();
+                                        } else {
+                                            System.out.println("双证商品为假");
+                                            a = 0;
+
+                                            setDoubleBackground4(logo_test);
+                                        }
+                                    }
+                                } else {
+                                    System.out.println("商品为假");
+
+                                    setBackground2(logo_test);
+
+                                }
+                            }
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            ImageView btn_zouyun = (ImageView) mAct.findViewById(R.id.seal_iv);
+            btn_zouyun.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if(write_again){
+                        Intent intent = new Intent(mAct, Activity_zouyun.class);
+                        mAct.startActivity(intent);
+                    }else{
+
+                    }
+                }
+            });
+        }
+    };
+
+    private Handler handler1 = new Handler(){
+        public void handleMessage(Message msg){
+            switch (msg.what){
+                case 2:
+                    System.out.println("接收第二个回复成功");
+            }
+        }
+    };
+
+
+
+
 
     public ValidatorPresenter(ValidatorContract.View view) {
         this.mView = view;
@@ -95,25 +341,37 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
     }
 
     private void analysisTag() {
+        write_again = false;
+        license_again = "";
+        aa = "";
+
         Intent intent = mAct.getIntent();
         Tag tag = NAFVerifyHelper.getNfcData(intent);
+        license = "";
         if (tag != null) {
             mView.restUI();
-//            tagInfo = parseProductTag(intent);
-//            if (tagInfo!=null && !TextUtils.isEmpty(tagInfo.pid)) {
-//                //显示真假结果，加载图片
-//                boolean result = showProduct(tagInfo.pid);
-//                if (result) {
-//                    startVerify(intent);
-//                } else {
-//                    mView.showAlert("未找到对应资源,请更新后再使用");
-//                }
-//            } else {
-//                mView.showAlert("空白标签！");
-//            }
+
+            /** 得到发给服务器的证书号*/
+            if(!readMu(tag).equals("")){
+                for(int i = 0; i < 4; i++){
+                    char a = readMu(tag).charAt(i);
+                    String mstr = "3" + a;
+                    license = license + mstr;
+                }
+            }
+            System.out.println("证书为：" + license);
+
+
             MifareUltralight mifare = MifareUltralight.get(tag);
-            String result="";
-            String temp="";
+            result="";
+            temp="";
+
+
+//            license = readMu(tag);
+//            System.out.println("证书为：" + license);
+
+
+
             try {
                 mifare.connect();
                 byte[] payload = mifare.readPages(0);
@@ -124,6 +382,10 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
                     }
                     result += temp;
                 }
+                if(!result.equals("")){
+                    result = getuid(result);
+                }
+
                 temp = "";
                 int move = 0x80;
                 byte[] transceive = mifare.transceive(new byte[]{0x30, -128});
@@ -132,32 +394,149 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
                     else temp+="1";
                     move = move >> 1;
                 }
-
-                ResultFragment instance = ResultFragment.newInstance();
-                mView.switchFragment(instance);
-                setMove(temp,instance);
-                List<TagMessage> tagMessage = DataSupport.where("uid = ?",result).find(TagMessage.class);
-                if(tagMessage.size()>0){
-                    if(tagMessage.get(0).getStatenum().equals(temp)){
-                        instance.setResultImg(R.mipmap.p_010001000100000002_success);
-                        instance.setResultProduct(true);
-                        instance.setTvInfo("商品已被开启");
-                    }else {
-                        instance.setResultImg(R.mipmap.p_010001000100000002_failure);
-                        instance.setResultProduct(false);
-                        instance.setTvInfo("商品状态位发生变化");
-                    }
-                }else {
-                    TagMessage tagMes = new TagMessage(result,temp);
-                    tagMes.save();
-                    instance.setResultImg(R.mipmap.p_010001000100000002_success);
-                    instance.setResultProduct(true);
-                    instance.setTvInfo("商品验证为真");
-                }
             } catch (IOException e) {
-                e.printStackTrace();
+//                boolean isContains = Arrays.asList(ArrayClass_zouyun.UIDARRAY).contains(result);
+                boolean isContains = false;
+
+                for(int i = 0; i < ArrayClass_zouyun.UIDARRAY.length; i++){
+                    if(result.equals(ArrayClass_zouyun.UIDARRAY[i])){
+                        isContains = true;
+                        break;
+                    }else{
+
+                    }
+                }
+
+
+                int postion = 0;
+                int uidCase = 0;
+                if (isContains) {
+                    for (int i = 0;i < ArrayClass_zouyun.UIDARRAY.length;i++) {
+                        if (ArrayClass_zouyun.UIDARRAY[i].equals(result)) {
+                            postion = i + 1;
+                        }
+                    }
+                    uidCase = postion % 32;
+                    switch (uidCase) {
+                        case 0:
+                            temp = "00000";
+                            break;
+                        case 1:
+                            temp = "00001";
+                            break;
+                        case 2:
+                            temp = "00010";
+                            break;
+                        case 3:
+                            temp = "00011";
+                            break;
+                        case 4:
+                            temp = "00100";
+                            break;
+                        case 5:
+                            temp = "00101";
+                            break;
+                        case 6:
+                            temp = "00110";
+                            break;
+                        case 7:
+                            temp = "00111";
+                            break;
+                        case 8:
+                            temp = "01000";
+                            break;
+                        case 9:
+                            temp = "01001";
+                            break;
+                        case 10:
+                            temp = "01010";
+                            break;
+                        case 11:
+                            temp = "01011";
+                            break;
+                        case 12:
+                            temp = "01100";
+                            break;
+                        case 13:
+                            temp = "01101";
+                            break;
+                        case 14:
+                            temp = "01110";
+                            break;
+                        case 15:
+                            temp = "01111";
+                            break;
+                        case 16:
+                            temp = "10000";
+                            break;
+                        case 17:
+                            temp = "10001";
+                            break;
+                        case 18:
+                            temp = "10010";
+                            break;
+                        case 19:
+                            temp = "10011";
+                            break;
+                        case 20:
+                            temp = "10100";
+                            break;
+                        case 21:
+                            temp = "10101";
+                            break;
+                        case 22:
+                            temp = "10110";
+                            break;
+                        case 23:
+                            temp = "10111";
+                            break;
+                        case 24:
+                            temp = "11000";
+                            break;
+                        case 25:
+                            temp = "11001";
+                            break;
+                        case 26:
+                            temp = "11010";
+                            break;
+                        case 27:
+                            temp = "11011";
+                            break;
+                        case 28:
+                            temp = "11100";
+                            break;
+                        case 29:
+                            temp = "11101";
+                            break;
+                        case 30:
+                            temp = "11110";
+                            break;
+                        case 31:
+                            temp = "11111";
+                            break;
+                        default:
+                            break;
+                    }
+                } else {
+                    temp = "";
+                }
             }
+            System.out.println("uid为：" + result);
+            System.out.println("状态位为：" + temp);
+//            sendWithOkHttp();
+            if(!(result.equals("") || license.equals(""))){
+                sendWithOkHttp();
+            }else{
+
+            }
+
+            getlicense_again();
+
+            writeTag1(tag, aa, mifare);
+
         }
+
+
     }
 
     public void setMove(String move,ResultFragment instance){
@@ -365,4 +744,899 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
             return null;
         }
     }
+
+    /**
+     * 读取证书22页
+     */
+    public String readMu(Tag tag){
+        MifareUltralight mifare_zouyun = MifareUltralight.get(tag);
+        String a = "";
+        String b = "";
+        try {
+            mifare_zouyun.connect();
+            byte[] data = mifare_zouyun.readPages(22);
+            a = new String(data, Charset.forName("US-ASCII"));
+            mifare_zouyun.close();
+            b = getCer(a);
+        } catch (IOException e) {
+            Toast.makeText(mAct, "探测标签失败", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
+        return b;
+    }
+
+    /**
+     * 获取实际的四位随机数证书
+     */
+    public String getCer(String a){
+        char a1 = a.charAt(0);
+        char a2 = a.charAt(1);
+        char a3 = a.charAt(2);
+        char a4 = a.charAt(3);
+        String b = "" + a1 + a2 + a3 + a4;
+        return b;
+    }
+    /**
+     * uid转换
+     */
+    public String getuid(String result){
+        String uid_zouyun = "";
+        for(int i = 0; i < 6; i++){
+            char a = result.charAt(i);
+            uid_zouyun = uid_zouyun + a;
+        }
+        for (int i = 8; i < 16; i++){
+            char a = result.charAt(i);
+            uid_zouyun = uid_zouyun + a;
+        }
+        return uid_zouyun;
+    }
+
+    /**
+     * 发送第一次网络请求
+     */
+    public void sendWithOkHttp(){
+        Thread a1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try{
+                    OkHttpClient client = new OkHttpClient();
+                    RequestBody requestBody;
+                    if(temp != "" && license != ""){
+                         requestBody = new FormBody.Builder()
+                                .add("uid", result)
+                                .add("certificate", license)
+                                .add("obflag", temp)
+                                .build();
+                    }else if(license != "" && temp == ""){
+                        requestBody = new FormBody.Builder()
+                                .add("uid", result)
+                                .add("certificate", license)
+                                .build();
+                    }else{
+                        requestBody = new FormBody.Builder()
+                                .add("uid", result)
+                                .add("obflag", temp)
+                                .build();
+                    }
+
+                    Request request = new Request.Builder().url("http://47.96.123.242/validate").post(requestBody).build();
+                    Response response = client.newCall(request).execute();
+                    String responseData = response.body().string();
+                    if(response.isSuccessful()){
+                        Message msg = new Message();
+                        msg.what = UPDATE;
+                        msg.obj = responseData;
+                        handler.sendMessage(msg);
+                    }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+            }
+        });
+        a1.start();
+        try {
+            a1.join();
+            System.out.println("a1.join()成功");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            System.out.println("a1.join()异常");
+        }
+    }
+
+    /**
+     * 解析json数据
+     */
+    private void handleData(String responsedata){
+        try {
+            JSONObject object1 = new JSONObject(responsedata);
+            JSONObject object2 = object1.getJSONObject("taginfo");
+            uid_test = object2.getString("uid");
+            license_test = object2.getString("certificate");
+            num_test = object2.getString("obflag");
+            logo_test = object2.getString("brand");
+            group_test = object2.getString("group_number");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 设置单标签为真结果图片
+     */
+    public void setBackground1(String logo){
+        ResultFragment instance = ResultFragment.newInstance();
+        mView.switchFragment(instance);
+        setMove(temp,instance);
+        switch(logo){
+            case "五粮春":
+                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+            case "剑南春":
+                instance.setResultImg(R.mipmap.p_010001000100000041_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000041_img);
+                break;
+            case "洋河酒":
+                instance.setResultImg(R.mipmap.p_010001000100000011_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000011_img);
+                break;
+            case "泸州老窖":
+                instance.setResultImg(R.mipmap.p_010001000100000021_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000021_img);
+                break;
+            case "茅台酒":
+                instance.setResultImg(R.mipmap.p_010001000100000031_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000031_img);
+                break;
+            case "古井贡酒":
+                instance.setResultImg(R.mipmap.p_010001000100000051_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000051_img);
+                break;
+            case "杜康酒":
+                instance.setResultImg(R.mipmap.p_010001000100000061_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000061_img);
+                break;
+            case "郎酒":
+                instance.setResultImg(R.mipmap.p_010001000100000071_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000071_img);
+                break;
+            case "玉溪烟":
+                instance.setResultImg(R.mipmap.p_020001000100000091_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000091_img);
+                break;
+            case "黄鹤楼烟":
+                instance.setResultImg(R.mipmap.p_020001000100000092_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000092_img);
+                break;
+            case "黄山徽商烟":
+                instance.setResultImg(R.mipmap.p_020001000100000093_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000093_img);
+                break;
+            case "九寨沟烟":
+                instance.setResultImg(R.mipmap.p_020001000100000094_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000094_img);
+                break;
+            case "阿玛尼服饰":
+                instance.setResultImg(R.mipmap.p_060001000100000081_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
+                break;
+            default:
+                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+        }
+    }
+
+    /**
+     *  设置单标签为假结果图片
+     */
+    public void setBackground2(String logo){
+        ResultFragment instance = ResultFragment.newInstance();
+        mView.switchFragment(instance);
+        setMove(temp,instance);
+        switch(logo){
+            case "五粮春":
+                instance.setResultImg(R.mipmap.p_010001000100000002_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+            case "剑南春":
+                instance.setResultImg(R.mipmap.p_010001000100000041_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000041_img);
+                break;
+            case "洋河酒":
+                instance.setResultImg(R.mipmap.p_010001000100000011_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000011_img);
+                break;
+            case "泸州老窖":
+                instance.setResultImg(R.mipmap.p_010001000100000021_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000021_img);
+                break;
+            case "茅台酒":
+                instance.setResultImg(R.mipmap.p_010001000100000031_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000031_img);
+                break;
+            case "古井贡酒":
+                instance.setResultImg(R.mipmap.p_010001000100000051_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000051_img);
+                break;
+            case "杜康酒":
+                instance.setResultImg(R.mipmap.p_010001000100000061_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000061_img);
+                break;
+            case "郎酒":
+                instance.setResultImg(R.mipmap.p_010001000100000071_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000071_img);
+                break;
+            case "玉溪烟":
+                instance.setResultImg(R.mipmap.p_020001000100000091_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000091_img);
+                break;
+            case "黄鹤楼烟":
+                instance.setResultImg(R.mipmap.p_020001000100000092_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000092_img);
+                break;
+            case "黄山徽商烟":
+                instance.setResultImg(R.mipmap.p_020001000100000093_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000093_img);
+                break;
+            case "九寨沟烟":
+                instance.setResultImg(R.mipmap.p_020001000100000094_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000094_img);
+                break;
+            case "阿玛尼服饰":
+                instance.setResultImg(R.mipmap.p_060001000100000081_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
+                break;
+            default:
+                instance.setResultImg(R.mipmap.p_010001000100000002_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+        }
+    }
+
+    /**
+     *  设置单标签状态位改变结果图片
+     */
+    public void setBackground3(String logo) {
+        ResultFragment instance = ResultFragment.newInstance();
+        mView.switchFragment(instance);
+        setMove(temp, instance);
+        switch (logo) {
+            case "五粮春":
+                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+            case "剑南春":
+                instance.setResultImg(R.mipmap.p_010001000100000041_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000041_img);
+                break;
+            case "洋河酒":
+                instance.setResultImg(R.mipmap.p_010001000100000011_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000011_img);
+                break;
+            case "泸州老窖":
+                instance.setResultImg(R.mipmap.p_010001000100000021_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000021_img);
+                break;
+            case "茅台酒":
+                instance.setResultImg(R.mipmap.p_010001000100000031_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000031_img);
+                break;
+            case "古井贡酒":
+                instance.setResultImg(R.mipmap.p_010001000100000051_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000051_img);
+                break;
+            case "杜康酒":
+                instance.setResultImg(R.mipmap.p_010001000100000061_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000061_img);
+                break;
+            case "郎酒":
+                instance.setResultImg(R.mipmap.p_010001000100000071_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000071_img);
+                break;
+            case "玉溪烟":
+                instance.setResultImg(R.mipmap.p_020001000100000091_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000091_img);
+                break;
+            case "黄鹤楼烟":
+                instance.setResultImg(R.mipmap.p_020001000100000092_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000092_img);
+                break;
+            case "黄山徽商烟":
+                instance.setResultImg(R.mipmap.p_020001000100000093_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000093_img);
+                break;
+            case "九寨沟烟":
+                instance.setResultImg(R.mipmap.p_020001000100000094_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000094_img);
+                break;
+            case "阿玛尼服饰":
+                instance.setResultImg(R.mipmap.p_060001000100000081_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
+                break;
+            default:
+                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+        }
+    }
+
+
+    /**
+     * 设置双标签第一张标签为真结果图片
+     */
+    public void setDoubleBackground1(String logo) {
+        ResultFragment instance = ResultFragment.newInstance();
+        mView.switchFragment(instance);
+        setMove(temp, instance);
+        instance.setResultImg1();
+        instance.setResultProduct(false);
+        switch (logo) {
+            case "五粮春":
+//                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+            case "剑南春":
+//                instance.setResultImg(R.mipmap.p_010001000100000041_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000041_img);
+                break;
+            case "洋河酒":
+//                instance.setResultImg(R.mipmap.p_010001000100000011_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000011_img);
+                break;
+            case "泸州老窖":
+//                instance.setResultImg(R.mipmap.p_010001000100000021_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000021_img);
+                break;
+            case "茅台酒":
+//                instance.setResultImg(R.mipmap.p_010001000100000031_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000031_img);
+                break;
+            case "古井贡酒":
+//                instance.setResultImg(R.mipmap.p_010001000100000051_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000051_img);
+                break;
+            case "杜康酒":
+//                instance.setResultImg(R.mipmap.p_010001000100000061_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000061_img);
+                break;
+            case "郎酒":
+//                instance.setResultImg(R.mipmap.p_010001000100000071_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000071_img);
+                break;
+            case "玉溪烟":
+//                instance.setResultImg(R.mipmap.p_020001000100000091_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_020001000100000091_img);
+                break;
+            case "黄鹤楼烟":
+//                instance.setResultImg(R.mipmap.p_020001000100000092_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_020001000100000092_img);
+                break;
+            case "黄山徽商烟":
+//                instance.setResultImg(R.mipmap.p_020001000100000093_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_020001000100000093_img);
+                break;
+            case "九寨沟烟":
+//                instance.setResultImg(R.mipmap.p_020001000100000094_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_020001000100000094_img);
+                break;
+            case "阿玛尼服饰":
+//                instance.setResultImg(R.mipmap.p_060001000100000081_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
+                break;
+            default:
+//                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+        }
+    }
+
+    /**
+     * 设置第一张标签状态位改变结果图片
+     */
+    public void setDoubleBackground2(String logo) {
+        ResultFragment instance = ResultFragment.newInstance();
+        mView.switchFragment(instance);
+        setMove(temp, instance);
+        instance.setResultImg1();
+        instance.setResultProduct(false);
+        switch (logo) {
+            case "五粮春":
+//                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+            case "剑南春":
+//                instance.setResultImg(R.mipmap.p_010001000100000041_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000041_img);
+                break;
+            case "洋河酒":
+//                instance.setResultImg(R.mipmap.p_010001000100000011_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000011_img);
+                break;
+            case "泸州老窖":
+//                instance.setResultImg(R.mipmap.p_010001000100000021_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000021_img);
+                break;
+            case "茅台酒":
+//                instance.setResultImg(R.mipmap.p_010001000100000031_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000031_img);
+                break;
+            case "古井贡酒":
+//                instance.setResultImg(R.mipmap.p_010001000100000051_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000051_img);
+                break;
+            case "杜康酒":
+//                instance.setResultImg(R.mipmap.p_010001000100000061_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000061_img);
+                break;
+            case "郎酒":
+//                instance.setResultImg(R.mipmap.p_010001000100000071_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000071_img);
+                break;
+            case "玉溪烟":
+//                instance.setResultImg(R.mipmap.p_020001000100000091_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_020001000100000091_img);
+                break;
+            case "黄鹤楼烟":
+//                instance.setResultImg(R.mipmap.p_020001000100000092_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_020001000100000092_img);
+                break;
+            case "黄山徽商烟":
+//                instance.setResultImg(R.mipmap.p_020001000100000093_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_020001000100000093_img);
+                break;
+            case "九寨沟烟":
+//                instance.setResultImg(R.mipmap.p_020001000100000094_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_020001000100000094_img);
+                break;
+            case "阿玛尼服饰":
+//                instance.setResultImg(R.mipmap.p_060001000100000081_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
+                break;
+            default:
+//                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+        }
+    }
+
+    /**
+     * 设置第二张标签为真结果图片
+     */
+    public void setDoubleBackground3(String logo) {
+        ResultFragment instance = ResultFragment.newInstance();
+        mView.switchFragment(instance);
+        setMove(temp, instance);
+        switch (logo) {
+            case "五粮春":
+                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+            case "剑南春":
+                instance.setResultImg(R.mipmap.p_010001000100000041_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000041_img);
+                break;
+            case "洋河酒":
+                instance.setResultImg(R.mipmap.p_010001000100000011_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000011_img);
+                break;
+            case "泸州老窖":
+                instance.setResultImg(R.mipmap.p_010001000100000021_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000021_img);
+                break;
+            case "茅台酒":
+                instance.setResultImg(R.mipmap.p_010001000100000031_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000031_img);
+                break;
+            case "古井贡酒":
+                instance.setResultImg(R.mipmap.p_010001000100000051_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000051_img);
+                break;
+            case "杜康酒":
+                instance.setResultImg(R.mipmap.p_010001000100000061_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000061_img);
+                break;
+            case "郎酒":
+                instance.setResultImg(R.mipmap.p_010001000100000071_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000071_img);
+                break;
+            case "玉溪烟":
+                instance.setResultImg(R.mipmap.p_020001000100000091_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000091_img);
+                break;
+            case "黄鹤楼烟":
+                instance.setResultImg(R.mipmap.p_020001000100000092_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000092_img);
+                break;
+            case "黄山徽商烟":
+                instance.setResultImg(R.mipmap.p_020001000100000093_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000093_img);
+                break;
+            case "九寨沟烟":
+                instance.setResultImg(R.mipmap.p_020001000100000094_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000094_img);
+                break;
+            case "阿玛尼服饰":
+                instance.setResultImg(R.mipmap.p_060001000100000081_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
+                break;
+            default:
+                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+        }
+    }
+
+    /**
+     * 设置第二张标签不匹配结果图片
+     */
+    public void setDoubleBackground4(String logo){
+        ResultFragment instance = ResultFragment.newInstance();
+        mView.switchFragment(instance);
+        setMove(temp,instance);
+        switch(logo){
+            case "五粮春":
+                instance.setResultImg(R.mipmap.p_010001000100000002_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+            case "剑南春":
+                instance.setResultImg(R.mipmap.p_010001000100000041_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000041_img);
+                break;
+            case "洋河酒":
+                instance.setResultImg(R.mipmap.p_010001000100000011_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000011_img);
+                break;
+            case "泸州老窖":
+                instance.setResultImg(R.mipmap.p_010001000100000021_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000021_img);
+                break;
+            case "茅台酒":
+                instance.setResultImg(R.mipmap.p_010001000100000031_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000031_img);
+                break;
+            case "古井贡酒":
+                instance.setResultImg(R.mipmap.p_010001000100000051_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000051_img);
+                break;
+            case "杜康酒":
+                instance.setResultImg(R.mipmap.p_010001000100000061_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000061_img);
+                break;
+            case "郎酒":
+                instance.setResultImg(R.mipmap.p_010001000100000071_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_010001000100000071_img);
+                break;
+            case "玉溪烟":
+                instance.setResultImg(R.mipmap.p_020001000100000091_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000091_img);
+                break;
+            case "黄鹤楼烟":
+                instance.setResultImg(R.mipmap.p_020001000100000092_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000092_img);
+                break;
+            case "黄山徽商烟":
+                instance.setResultImg(R.mipmap.p_020001000100000093_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000093_img);
+                break;
+            case "九寨沟烟":
+                instance.setResultImg(R.mipmap.p_020001000100000094_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_020001000100000094_img);
+                break;
+            case "阿玛尼服饰":
+                instance.setResultImg(R.mipmap.p_060001000100000081_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
+                break;
+            default:
+                instance.setResultImg(R.mipmap.p_010001000100000002_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
+                break;
+        }
+    }
+
+    public void saveTagData() {
+        SharedPreferences preferences = mAct.getSharedPreferences("info",Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putString("brand",logo_test);
+        editor.putString("group_number",group_test);
+        editor.apply();
+    }
+
+    public void send2WithOkHttp(){
+        Thread a1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try{
+                    OkHttpClient client = new OkHttpClient();
+                    RequestBody requestBody;
+                    requestBody = new FormBody.Builder().add("uid", result).add("certificate", license_again).build();
+
+                    Request request = new Request.Builder().url("http://47.96.123.242/function/add_tag").post(requestBody).build();
+                    Response response = client.newCall(request).execute();
+                    String responseData = response.body().string();
+                    if(response.isSuccessful()){
+                        Message msg1 = new Message();
+                        msg1.what = ADD;
+                        msg1.obj = responseData;
+                        handler1.sendMessage(msg1);
+                        System.out.println("第二个网络请求成功");
+                    }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+            }
+        });
+        a1.start();
+
+    }
+
+    /**
+     * 产生再次写入的证书
+     */
+    public void getlicense_again(){
+        int a0, a1, a2, a3;
+        a0 = (int) (Math.random() * 10);
+        a1 = (int) (Math.random() * 10);
+        a2 = (int) (Math.random() * 10);
+        a3 = (int) (Math.random() * 10);
+        aa = Integer.toString(a0) + Integer.toString(a1) + Integer.toString(a2) + Integer.toString(a3);
+        for(int i = 0; i < 4; i++){
+            char a = aa.charAt(i);
+            String mstr = "3" + a;
+            license_again = license_again + mstr;
+        }
+        System.out.println("再次写入的证书为：" + license_again);
+    }
+
+    /**
+     * 再次写入证书的操作
+     */
+    public void write_again(String a){
+        a = license_again;
+        if (a == null)
+            return;
+        //获取Tag对象
+        Intent intent = mAct.getIntent();
+        Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+
+
+
+        //写非NDEF格式的数据
+        String[] techList = tag.getTechList();
+        boolean haveMifareUltralight = false;
+        for (String tech : techList) {
+            if (tech.indexOf("MifareUltralight") >= 0) {
+                haveMifareUltralight = true;
+                break;
+            }
+        }
+
+        if (!haveMifareUltralight) {
+            Toast.makeText(mAct, "不支持MifareUltralight数据格式", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        //writeTag1(tag, a);
+    }
+
+    private void writeTag1(Tag tag, String num, MifareUltralight ultralight) {
+        //MifareUltralight ultralight = MifareUltralight.get(tag);
+        try {
+            //ultralight.connect();
+
+            ultralight.writePage(22, num.getBytes(Charset.forName("US-ASCII")));
+
+            System.out.println("非ndef数据写入成功");
+            isSuccessfullyWritted = true;
+        } catch (Exception e) {
+            System.out.println("非ndef写入异常");
+            isSuccessfullyWritted = false;
+        } finally {
+            try {
+                ultralight.close();
+            } catch (Exception e) {
+            }
+        }
+    }
+
 }

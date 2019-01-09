@@ -16,7 +16,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            android:src="@mipmap/p_010001000100000002_bg" />
+            android:src="@mipmap/meitu_2" />
+            <!--android:src="@mipmap/p_010001000100000002_bg" />-->
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -39,8 +40,8 @@
                         android:id="@+id/logo_iv"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
-                        android:layout_alignParentLeft="true"
-                        android:src="@mipmap/p_010001000100000002_logo" />
+                        android:layout_alignParentLeft="true"/>
+                        <!--android:src="@mipmap/p_010001000100000002_logo" />-->
 
                     <TextView
                         android:id="@+id/title_txt"
@@ -77,7 +78,8 @@
                         android:layout_marginLeft="10.0dp"
                         android:layout_toRightOf="@id/sub_title_txt"
                         android:scaleType="fitCenter"
-                        android:src="@mipmap/p_010001000100000002_seal" />
+                        android:src="@mipmap/mima1" />
+                        <!--android:src="@mipmap/p_010001000100000002_seal" />-->
                 </RelativeLayout>
 
                 <LinearLayout
@@ -231,6 +233,13 @@
                 android:paddingLeft="5dp"
                 android:paddingRight="5dp"
                 android:src="@mipmap/close_btn_home" />
+
+            <ImageView
+                android:id="@+id/img_zouyun"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                />
 
             <include
                 android:id="@+id/failure_layout"

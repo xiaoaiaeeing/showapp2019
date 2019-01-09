@@ -71,8 +71,10 @@ public class ResultFragment extends BaseFragment{
         Log.d("ContentValues",""+viewById);
         if(c == '1'){
             viewById.setBackgroundColor(Color.parseColor("#FF0000"));
-        }else {
+        }else if(c == '0'){
             viewById.setBackgroundColor(Color.parseColor("#44BB44"));
+        }else{
+            viewById.setBackgroundColor(Color.parseColor("#B5B5B5"));
         }
 
     }
@@ -88,5 +90,21 @@ public class ResultFragment extends BaseFragment{
         }else {
             imgView.setVisibility(View.GONE);
         }
+    }
+
+    /**
+     * 设置酒的图片
+     */
+    public void setImg_zouyun(int id){
+        ImageView imgView = (ImageView) getHostActivity().findViewById(R.id.img_zouyun);
+        imgView.setImageResource(id);
+    }
+
+    /**
+     * 不显示结果
+     */
+    public void setResultImg1(){
+        ImageView imgView = (ImageView) getHostActivity().findViewById(R.id.result_img);
+        imgView.setVisibility(View.GONE);
     }
 }

@@ -33,6 +33,11 @@ public class ValidatorActivity extends BaseActivity implements ValidatorContract
     private static final int REQUEST_ALL_PERMISSION = 300;
     private BaseFragment mCurrentFragment;
 
+    /** 再次加密的按钮*/
+
+//    public boolean re_zouyun = false;
+
+
     public static void jump2Validator(Context context) {
         Intent intent = new Intent(context, ValidatorActivity.class);
         context.startActivity(intent);
@@ -63,6 +68,8 @@ public class ValidatorActivity extends BaseActivity implements ValidatorContract
         mToolbarRightBtn.setOnClickListener(this);
         mToolbarBackBtn = (ImageView) findViewById(R.id.btn_back);
         mToolbarBackBtn.setOnClickListener(this);
+
+
         initPermission();
 
     }
