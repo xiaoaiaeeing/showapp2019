@@ -26,14 +26,36 @@
             android:name=".ui.ValidatorActivity"
             android:launchMode="singleTask"
             android:screenOrientation="portrait">
-            <intent-filter android:priority="1000">
-                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+            <!--<intent-filter android:priority="1000">-->
+                <!--<action android:name="android.nfc.action.NDEF_DISCOVERED" />-->
 
-                <category android:name="android.intent.category.DEFAULT" />
+                <!--<category android:name="android.intent.category.DEFAULT" />-->
 
-                <data android:scheme="d156000189" />
-            </intent-filter>
-            <intent-filter android:priority="1000">
+                <!--<data android:scheme="d156000189" />-->
+            <!--</intent-filter>-->
+            <!--<intent-filter android:priority="1000">-->
+                <!--<action android:name="android.nfc.action.NDEF_DISCOVERED" />-->
+
+                <!--<category android:name="android.intent.category.DEFAULT" />-->
+
+                <!--<data android:scheme="d156000139" />-->
+            <!--</intent-filter>-->
+            <!--<intent-filter>-->
+                <!--<action android:name="android.nfc.action.TECH_DISCOVERED" />-->
+
+                <!--<category android:name="android.intent.category.DEFAULT" />-->
+            <!--</intent-filter>-->
+            <!--<intent-filter>-->
+                <!--<action android:name="android.nfc.action.TAG_DISCOVERED" />-->
+
+                <!--<category android:name="android.intent.category.DEFAULT" />-->
+            <!--</intent-filter>-->
+
+            <!--<meta-data-->
+                <!--android:name="android.nfc.action.TECH_DISCOVERED"-->
+                <!--android:resource="@xml/nfc_tech_list" />-->
+
+            <intent-filter android:priority="1000" >
                 <action android:name="android.nfc.action.NDEF_DISCOVERED" />
 
                 <category android:name="android.intent.category.DEFAULT" />
@@ -54,6 +76,8 @@
             <meta-data
                 android:name="android.nfc.action.TECH_DISCOVERED"
                 android:resource="@xml/nfc_tech_list" />
+
+
         </activity>
         <activity
             android:name=".ui.CommonWebActivity"

@@ -24,6 +24,9 @@
             android:name=".ui.home.HomeActivity"
             android:launchMode="singleTask"
             android:screenOrientation="portrait" />
+
+
+
         <activity
             android:name=".ui.company.CompanyActivity"
             android:screenOrientation="portrait" />
@@ -87,6 +90,9 @@
             android:launchMode="singleTop" />
         <activity android:name=".activity.WriteTagActivity"
             android:launchMode="singleTop"/>
+
+
+
     </application>
 
 </manifest>

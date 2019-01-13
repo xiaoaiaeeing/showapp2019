@@ -206,11 +206,12 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
                                 if (result.equals(uid_test) && license.equals(license_test)) {
                                     if (a != 1) {
                                         if (temp.equals(num_test)) {
-                                            System.out.println("请扫描第二张标签");
+                                            System.out.println("这是双标签，请扫描第二张标签");
                                             System.out.println("组号为：" + group_test);
                                             SharedPreferences pref = mAct.getSharedPreferences("group", Context.MODE_PRIVATE);
                                             SharedPreferences.Editor editor = pref.edit();
                                             editor.putString("NUM", group_test);
+                                            editor.putString("UID", result);
                                             editor.apply();
                                             a = 1;
 
@@ -220,10 +221,11 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
                                             //write_again = true;
                                             //saveTagData();
                                         } else {
-                                            System.out.println("请扫描第二张标签");
+                                            System.out.println("这是双标签，请扫描第二张标签");
                                             SharedPreferences pref = mAct.getSharedPreferences("group", Context.MODE_PRIVATE);
                                             SharedPreferences.Editor editor = pref.edit();
                                             editor.putString("NUM", group_test);
+                                            editor.putString("UID", result);
                                             editor.apply();
                                             a = 1;
 
@@ -236,17 +238,30 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
                                     } else {
                                         SharedPreferences pref = mAct.getSharedPreferences("group", Context.MODE_PRIVATE);
                                         String groupNum = pref.getString("NUM", "1");
-                                        if (group_test.equals(groupNum)) {
+                                        String uid_again = pref.getString("UID","");
+                                        if (group_test.equals(groupNum) && !(uid_again.equals(result))) {
                                             System.out.println("双证商品为真");
                                             a = 0;
 
                                             setDoubleBackground3(logo_test);
                                             send2WithOkHttp();
 
+                                            System.out.println("uid_again: " + uid_again);
+                                            System.out.println("result: " + result);
 
                                             //write_again = true;
                                             //saveTagData();
-                                        } else {
+                                        }else if(group_test.equals(groupNum) && uid_again.equals(result)){
+                                            System.out.println("这是双标签，请勿重复扫描同一张标签");
+                                            ResultFragment instance = ResultFragment.newInstance();
+                                            mView.switchFragment(instance);
+                                            setMove(temp,instance);
+                                            instance.setResultImg1();
+                                            instance.setResultProduct(false);
+                                            instance.setTvInfo("这是双标签，请勿重复扫描同一张标签");
+
+                                            send2WithOkHttp();
+                                        }else {
                                             System.out.println("双证商品为假");
                                             a = 0;
 
@@ -949,6 +964,12 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
                 instance.setTvInfo("商品为真, 品牌为" + logo_test);
                 instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
                 break;
+            case "abcam":
+                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.zouyun1);
+                break;
             default:
                 instance.setResultImg(R.mipmap.p_010001000100000002_success);
                 instance.setResultProduct(true);
@@ -1043,6 +1064,12 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
                 instance.setResultProduct(false);
                 instance.setTvInfo("商品为假, 品牌为" + logo_test);
                 instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
+                break;
+            case "abcam":
+                instance.setResultImg(R.mipmap.p_010001000100000002_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.zouyun1);
                 break;
             default:
                 instance.setResultImg(R.mipmap.p_010001000100000002_failure);
@@ -1139,6 +1166,13 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
                 instance.setTvInfo("商品已开启, 品牌为" + logo_test);
                 instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
                 break;
+            case "abcam":
+                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品已开启, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.zouyun1);
+                break;
+
             default:
                 instance.setResultImg(R.mipmap.p_010001000100000002_success);
                 instance.setResultProduct(true);
@@ -1162,85 +1196,91 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
             case "五粮春":
 //                instance.setResultImg(R.mipmap.p_010001000100000002_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
                 break;
             case "剑南春":
 //                instance.setResultImg(R.mipmap.p_010001000100000041_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000041_img);
                 break;
             case "洋河酒":
 //                instance.setResultImg(R.mipmap.p_010001000100000011_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000011_img);
                 break;
             case "泸州老窖":
 //                instance.setResultImg(R.mipmap.p_010001000100000021_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000021_img);
                 break;
             case "茅台酒":
 //                instance.setResultImg(R.mipmap.p_010001000100000031_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000031_img);
                 break;
             case "古井贡酒":
 //                instance.setResultImg(R.mipmap.p_010001000100000051_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000051_img);
                 break;
             case "杜康酒":
 //                instance.setResultImg(R.mipmap.p_010001000100000061_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000061_img);
                 break;
             case "郎酒":
 //                instance.setResultImg(R.mipmap.p_010001000100000071_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000071_img);
                 break;
             case "玉溪烟":
 //                instance.setResultImg(R.mipmap.p_020001000100000091_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_020001000100000091_img);
                 break;
             case "黄鹤楼烟":
 //                instance.setResultImg(R.mipmap.p_020001000100000092_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_020001000100000092_img);
                 break;
             case "黄山徽商烟":
 //                instance.setResultImg(R.mipmap.p_020001000100000093_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_020001000100000093_img);
                 break;
             case "九寨沟烟":
 //                instance.setResultImg(R.mipmap.p_020001000100000094_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_020001000100000094_img);
                 break;
             case "阿玛尼服饰":
 //                instance.setResultImg(R.mipmap.p_060001000100000081_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
+                break;
+            case "abcam":
+//                instance.setResultImg(R.mipmap.p_060001000100000081_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
                 break;
             default:
 //                instance.setResultImg(R.mipmap.p_010001000100000002_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
                 break;
         }
@@ -1259,85 +1299,91 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
             case "五粮春":
 //                instance.setResultImg(R.mipmap.p_010001000100000002_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
                 break;
             case "剑南春":
 //                instance.setResultImg(R.mipmap.p_010001000100000041_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000041_img);
                 break;
             case "洋河酒":
 //                instance.setResultImg(R.mipmap.p_010001000100000011_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000011_img);
                 break;
             case "泸州老窖":
 //                instance.setResultImg(R.mipmap.p_010001000100000021_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000021_img);
                 break;
             case "茅台酒":
 //                instance.setResultImg(R.mipmap.p_010001000100000031_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000031_img);
                 break;
             case "古井贡酒":
 //                instance.setResultImg(R.mipmap.p_010001000100000051_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000051_img);
                 break;
             case "杜康酒":
 //                instance.setResultImg(R.mipmap.p_010001000100000061_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000061_img);
                 break;
             case "郎酒":
 //                instance.setResultImg(R.mipmap.p_010001000100000071_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000071_img);
                 break;
             case "玉溪烟":
 //                instance.setResultImg(R.mipmap.p_020001000100000091_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_020001000100000091_img);
                 break;
             case "黄鹤楼烟":
 //                instance.setResultImg(R.mipmap.p_020001000100000092_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_020001000100000092_img);
                 break;
             case "黄山徽商烟":
 //                instance.setResultImg(R.mipmap.p_020001000100000093_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_020001000100000093_img);
                 break;
             case "九寨沟烟":
 //                instance.setResultImg(R.mipmap.p_020001000100000094_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_020001000100000094_img);
                 break;
             case "阿玛尼服饰":
 //                instance.setResultImg(R.mipmap.p_060001000100000081_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
+                //instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
+                break;
+            case "abcam":
+//                instance.setResultImg(R.mipmap.p_060001000100000081_success);
+//                instance.setResultProduct(true);
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
                 break;
             default:
 //                instance.setResultImg(R.mipmap.p_010001000100000002_success);
 //                instance.setResultProduct(true);
-                instance.setTvInfo("请扫描第二张标签");
+                instance.setTvInfo("这是双标签，请扫描第二张标签");
                 //instance.setImg_zouyun(R.mipmap.p_010001000100000002_img);
                 break;
         }
@@ -1428,6 +1474,12 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
                 instance.setResultProduct(true);
                 instance.setTvInfo("商品为真, 品牌为" + logo_test);
                 instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
+                break;
+            case "abcam":
+                instance.setResultImg(R.mipmap.p_010001000100000002_success);
+                instance.setResultProduct(true);
+                instance.setTvInfo("商品为真, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.zouyun1);
                 break;
             default:
                 instance.setResultImg(R.mipmap.p_010001000100000002_success);
@@ -1524,6 +1576,12 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
                 instance.setTvInfo("商品为假, 品牌为" + logo_test);
                 instance.setImg_zouyun(R.mipmap.p_060001000100000081_img);
                 break;
+            case "abcam":
+                instance.setResultImg(R.mipmap.p_010001000100000002_failure);
+                instance.setResultProduct(false);
+                instance.setTvInfo("商品为假, 品牌为" + logo_test);
+                instance.setImg_zouyun(R.mipmap.zouyun1);
+                break;
             default:
                 instance.setResultImg(R.mipmap.p_010001000100000002_failure);
                 instance.setResultProduct(false);
@@ -1540,6 +1598,8 @@ public class ValidatorPresenter implements ValidatorContract.Presenter, Validate
         editor.putString("group_number",group_test);
         editor.apply();
     }
+
+
 
     public void send2WithOkHttp(){
         Thread a1 = new Thread(new Runnable() {
