@@ -97,7 +97,7 @@
                         android:layout_height="wrap_content"
                         android:layout_centerInParent="true"
                         android:layout_alignParentTop="true"
-                        android:text="请讲NFC天线靠近商品标签，等待验证"
+                        android:text="请将NFC天线靠近商品标签，等待验证"
                         android:textColor="@color/home_wly_black"
                         android:layout_marginTop="30dp"
                         android:textSize="16sp"
